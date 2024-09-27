@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noor Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .search-container {
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 90%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #357ae8;
+        }
+
+        #search-results {
+            margin-top: 30px;
+        }
+
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-item h3 {
+            margin: 0 0 5px;
+            font-size: 18px;
+        }
+
+        .result-item a {
+            color: #1a0dab;
+            text-decoration: none;
+        }
+
+        .result-item a:hover {
+            text-decoration: underline;
+        }
+
+        .result-item img {
+            max-width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .result-content {
+            flex-grow: 1;
+        }
+
+        .snippet {
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 10px 15px;
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        .pagination button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .loading img {
+            width: 50px;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+  <div class="npc-popup"></div>
+
+    <h1><img src="https://i.ibb.co/z8HMXBM/Untitled-design.png" width="90%"></h1>
+
+    <div class="search-container">
+        <input type="text" id="query" placeholder="Search...">
+        <button onclick="performSearch(1)">Search</button>
+    </div>
+
+    <div id="search-results"></div>
+    
+    <div class="pagination" id="pagination"></div>
+
+    <div class="loading" id="loading" style="display: none;">
+        <img src="https://i.ibb.co/tz48Ry1/noorprogramming.png" alt="Loading...">
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+
+    <script>
+        const apiKey = 'AIzaSyDQRe53o2pYTQcYvZd69aWP5TVWHMABJNw'; // Replace with your Google API key
+        const searchEngineId = '37b97d6b7179143fd'; // Replace with your Custom Search Engine ID
+        let currentPage = 1;
+        const resultsPerPage = 10;
+
+        async function performSearch(pageNumber) {
+            const query = document.getElementById('query').value;
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            const startIndex = (pageNumber - 1) * resultsPerPage + 1;
+            const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&start=${startIndex}&num=${resultsPerPage}`;
+            
+            displayLoading(true);
+            clearResults();
+            currentPage = pageNumber;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                displayResults(data.items);
+                updatePagination(data.queries);
+
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                displayLoading(false);
+            }
+        }
+
+        function displayResults(items) {
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                resultsDiv.innerHTML = '<p>No results found.</p>';
+                return;
+            }
+
+            items.forEach(item => {
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item');
+
+                const resultContent = document.createElement('div');
+                resultContent.classList.add('result-content');
+                
+                const link = document.createElement('a');
+                link.href = item.link;
+                link.target = "_blank"; // Opens link in new tab
+                link.innerHTML = `<h3>${item.title}</h3>`;
+                
+                const snippet = document.createElement('p');
+                snippet.classList.add('snippet');
+                snippet.textContent = item.snippet;
+
+                resultContent.appendChild(link);
+                resultContent.appendChild(snippet);
+
+                resultItem.appendChild(resultContent);
+
+                if (item.pagemap && item.pagemap.cse_image && item.pagemap.cse_image.length > 0) {
+                    const image = document.createElement('img');
+                    image.src = item.pagemap.cse_image[0].src;
+                    resultItem.insertBefore(image, resultContent);
+                }
+
+                resultsDiv.appendChild(resultItem);
+            });
+        }
+
+        function updatePagination(queries) {
+            const paginationDiv = document.getElementById('pagination');
+            paginationDiv.innerHTML = '';
+
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.disabled = !queries.previousPage;
+            prevButton.onclick = () => performSearch(currentPage - 1);
+            paginationDiv.appendChild(prevButton);
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.disabled = !queries.nextPage;
+            nextButton.onclick = () => performSearch(currentPage + 1);
+            paginationDiv.appendChild(nextButton);
+        }
+
+        function displayLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function clearResults() {
+            document.getElementById('search-results').innerHTML = '';
+            document.getElementById('pagination').innerHTML = '';
+            document.getElementById('error-message').innerHTML = '';
+        }
+
+        function displayError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+        }
+    </script>
+
+</body>
+</html>
